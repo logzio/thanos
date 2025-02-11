@@ -170,6 +170,9 @@ type AvalancheOptions struct {
 	SeriesInterval string
 	ValueInterval  string
 
+	ConstLabels []string
+	LabelCount  string
+
 	RemoteURL           string
 	RemoteWriteInterval string
 	RemoteBatchSize     string
@@ -191,9 +194,14 @@ func NewAvalanche(e e2e.Environment, name string, o AvalancheOptions) *e2eobs.Ob
 		"--value-interval":        o.ValueInterval,
 		"--metric-interval":       o.MetricInterval,
 		"--series-interval":       o.SeriesInterval,
+		"--label-count":           o.LabelCount,
 		"--remote-tenant-header":  "THANOS-TENANT",
 		"--remote-tenant":         o.TenantID,
 	})
+
+	for _, l := range o.ConstLabels {
+		args = append(args, "--const-label", l)
+	}
 
 	return e2eobs.AsObservable(f.Init(wrapWithDefaults(e2e.StartOptions{
 		Image:   "quay.io/prometheuscommunity/avalanche:v0.5.0",
@@ -248,6 +256,7 @@ type QuerierBuilder struct {
 	ruleAddresses           []string
 	metadataAddresses       []string
 	envVars                 map[string]string
+	extArgs                 map[string]string
 	targetAddresses         []string
 	exemplarAddresses       []string
 	enableFeatures          []string
@@ -387,6 +396,11 @@ func (q *QuerierBuilder) WithEnvVars(envVars map[string]string) *QuerierBuilder 
 	return q
 }
 
+func (q *QuerierBuilder) WithExtArgs(args map[string]string) *QuerierBuilder {
+	q.extArgs = args
+	return q
+}
+
 func (q *QuerierBuilder) WithTelemetryQuantiles(duration []float64, samples []float64, series []float64) *QuerierBuilder {
 	q.telemetryDurationQuantiles = duration
 	q.telemetrySamplesQuantiles = samples
@@ -431,6 +445,10 @@ func (q *QuerierBuilder) collectArgs() ([]string, error) {
 		"--query.max-concurrent":  "1",
 		"--store.sd-interval":     "5s",
 	})
+
+	for param, value := range q.extArgs {
+		args = append(args, fmt.Sprintf("%s=%s", param, value))
+	}
 
 	for _, repl := range q.replicaLabels {
 		args = append(args, "--query.replica-label="+repl)
@@ -552,6 +570,7 @@ type ReceiveBuilder struct {
 	nativeHistograms    bool
 	labels              []string
 	tenantSplitLabel    string
+	extArgs             map[string]string
 }
 
 func NewReceiveBuilder(e e2e.Environment, name string) *ReceiveBuilder {
@@ -620,6 +639,11 @@ func (r *ReceiveBuilder) WithValidationEnabled(limit int, metaMonitoring string,
 
 func (r *ReceiveBuilder) WithNativeHistograms() *ReceiveBuilder {
 	r.nativeHistograms = true
+	return r
+}
+
+func (r *ReceiveBuilder) WithExtArgs(args map[string]string) *ReceiveBuilder {
+	r.extArgs = args
 	return r
 }
 
@@ -719,6 +743,10 @@ func (r *ReceiveBuilder) Init() *e2eobs.Observable {
 
 	if r.nativeHistograms {
 		args["--tsdb.enable-native-histograms"] = ""
+	}
+
+	for param, value := range r.extArgs {
+		args[param] = value
 	}
 
 	return e2eobs.AsObservable(r.f.Init(wrapWithDefaults(e2e.StartOptions{
