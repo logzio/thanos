@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"github.com/stretchr/testify/assert"
 	"io"
 	"math"
 	"math/rand"
@@ -74,6 +75,68 @@ func TestRawChunkReset(t *testing.T) {
 	r := rawChunk([]byte{1, 2})
 	r.Reset([]byte{3, 4})
 	testutil.Equals(t, []byte(r), []byte{3, 4})
+}
+
+func TestBucketBlock_FillGapsWithHigherResolution(t *testing.T) {
+	t.Parallel()
+
+	set := newBucketBlockSet(labels.Labels{})
+
+	type resBlock struct {
+		mint, maxt int64
+		window     int64
+	}
+
+	input := []resBlock{
+		// before mint
+		{window: downsample.ResLevel0, mint: 0, maxt: 100},
+		// head - only raw
+		{window: downsample.ResLevel0, mint: 100, maxt: 200},
+		// exact overlap
+		{window: downsample.ResLevel0, mint: 200, maxt: 600},
+		{window: downsample.ResLevel1, mint: 200, maxt: 600},
+		// covered only by lower resolution
+		{window: downsample.ResLevel2, mint: 600, maxt: 1000},
+		// overlap wit ha gap
+		{window: downsample.ResLevel0, mint: 1000, maxt: 1750},
+		{window: downsample.ResLevel1, mint: 1100, maxt: 1750},
+		// tail - only raw
+		{window: downsample.ResLevel0, mint: 1750, maxt: 7000},
+		// after maxt - blocks are half open [min, max)
+		{window: downsample.ResLevel0, mint: 7001, maxt: 10000},
+	}
+
+	expected := []resBlock{
+		{window: downsample.ResLevel0, mint: 100, maxt: 200},
+		{window: downsample.ResLevel1, mint: 200, maxt: 600},
+		{window: downsample.ResLevel0, mint: 1000, maxt: 1750},
+		{window: downsample.ResLevel1, mint: 1100, maxt: 1750},
+		{window: downsample.ResLevel0, mint: 1750, maxt: 7000},
+	}
+
+	for _, in := range input {
+		var m metadata.Meta
+		m.Thanos.Downsample.Resolution = in.window
+		m.MinTime = in.mint
+		m.MaxTime = in.maxt
+
+		testutil.Ok(t, set.add(&bucketBlock{meta: &m}))
+	}
+
+	low := int64(100)
+	high := int64(7000)
+	maxResolution := downsample.ResLevel1
+	res := set.getFor(low, high, maxResolution, nil)
+
+	assert.Equal(t, len(expected), len(res))
+
+	for i, b := range res {
+		//fmt.Printf("Block: %6d - %6d %v\n", b.meta.MinTime, b.meta.MaxTime, b.meta.Thanos.Downsample.Resolution)
+
+		assert.Equal(t, expected[i].mint, b.meta.MinTime)
+		assert.Equal(t, expected[i].maxt, b.meta.MaxTime)
+		assert.Equal(t, expected[i].window, b.meta.Thanos.Downsample.Resolution)
+	}
 }
 
 func TestBucketBlock_Property(t *testing.T) {
