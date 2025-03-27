@@ -810,7 +810,7 @@ func (h *Handler) fanoutForward(ctx context.Context, params remoteWriteParams) (
 				return stats, writeErrors.ErrOrNil()
 			}
 
-			if resp.err != nil {
+			if resp.err != nil && !isConflict(resp.err) {
 				// Track errors and successes on a per-series basis.
 				for _, seriesID := range resp.seriesIDs {
 					seriesErrs[seriesID].Add(resp.err)
