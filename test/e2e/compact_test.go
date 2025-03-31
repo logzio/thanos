@@ -73,6 +73,10 @@ func (b *blockDesc) Create(ctx context.Context, dir string, delay time.Duration,
 	return e2eutil.CreateBlockWithBlockDelay(ctx, dir, b.series, numSamples, b.mint, b.maxt, delay, b.extLset, 0, hf, sampleTypes)
 }
 
+func (b *blockDesc) CreateWithValueGenerator(ctx context.Context, dir string, delay time.Duration, hf metadata.HashFunc, numSamples int, sampleTypes []chunkenc.ValueType, valueGenerator e2eutil.ValueGenerator) (ulid.ULID, error) {
+	return e2eutil.CreateBlockWithBlockDelayAndValueGenerator(ctx, dir, b.series, numSamples, b.mint, b.maxt, delay, b.extLset, 0, hf, sampleTypes, valueGenerator)
+}
+
 func TestCompactWithStoreGateway(t *testing.T) {
 	testCompactWithStoreGateway(t, false)
 }
