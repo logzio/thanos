@@ -724,7 +724,7 @@ func (t *MultiTSDB) startTSDB(logger log.Logger, tenantID string, tenant *tenant
 
 	opts := *t.tsdbOpts
 	opts.BlocksToDelete = tenant.blocksToDelete
-	opts.EnableDelayedCompaction = true
+	opts.EnableDelayedCompaction = false
 	opts.CompactionDelayMaxPercent = tsdb.DefaultCompactionDelayMaxPercent
 
 	opts.BlockChunkQuerierFunc = func(b tsdb.BlockReader, mint, maxt int64) (storage.ChunkQuerier, error) {
