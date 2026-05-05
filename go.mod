@@ -63,7 +63,7 @@ require (
 	github.com/prometheus/common v0.65.1-0.20250703115700-7f8b2a0d32d3
 	github.com/prometheus/exporter-toolkit v0.14.0
 	// Prometheus maps version 3.x.y to tags v0.30x.y.
-	github.com/prometheus/prometheus v0.305.1-0.20250721065454-b09cf6be8d56
+	github.com/prometheus/prometheus v0.311.3
 	github.com/redis/rueidis v1.0.61
 	github.com/seiflotfy/cuckoofilter v0.0.0-20240715131351-a2f2c23f1771
 	github.com/sony/gobreaker v1.0.0
